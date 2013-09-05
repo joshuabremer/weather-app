@@ -1,0 +1,2 @@
+module SamlauthHelper
+end
