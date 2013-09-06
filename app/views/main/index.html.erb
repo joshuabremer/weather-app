@@ -5,7 +5,7 @@
       <fieldset>
         <form id="location-form">
           <div class="input-group">
-            <input type="text" class="form-control" value="97213" id="location-input" name="location">
+            <input type="text" class="form-control" value="" id="location-input" name="location">
             <span class="input-group-btn">
               <button id="submit-location" class="btn btn-default" type="button">Search!</button>
             </span>
@@ -15,7 +15,12 @@
     </div>
 
     <hr>
-    <div id="google-map-container class="panel panel-default">
+    <div id="google-map-container" class="fade-elements">
+      <div class="panel panel-default">
+      
+        <div class="panel-heading">
+        <h3 class="panel-title">Current Weather</h3>
+      </div>
       <div class="panel-body">
         <div class="row" >
           <div class="col-lg-12">
@@ -26,26 +31,36 @@
         </div>
       </div>
     </div>
+  </div>
     <hr>
-    <div id="forecast-io-container" ">
+    <div id="forecast-io-container" class="fade-elements">
       <div class="row" >
         <div class="col-lg-4">
           <div class="panel panel-default">
-            <div class="panel-body">
+            
+              <div class="panel-heading">
               <h3 class="panel-title">Current Weather</h3>
-
+            </div>
+            <div class="panel-body">
               <canvas id="current-weather-icon" width="60" height="60"></canvas>
               <span class="current-temp"></span>
-              <span class="current-hi-temp">Hi: </span>
-              <span class="current-low-temp">Lo: </span>
+              <p><span class="current-hi-temp">Hi: </span>
+              <span class="current-low-temp">Lo: </span></p>
+              <p class="current-humidity">Humidity:</p>
+              <p class="current-precipProbability"></p>
+              <p class="current-weather-description"></p>
+
             </div>
           </div>
         </div>
 
         <div class="col-lg-8">
           <div class="panel panel-default">
+            
+              <div class="panel-heading">
+              <h3 class="panel-title">Precipitation by the Minute</h3>
+            </div>
             <div class="panel-body">
-              <h3 class="panel-title">Precipitation By Minute</h3>
               <div id="weather-by-minute-chart"></div>
 
             </div>

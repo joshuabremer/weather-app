@@ -31,7 +31,10 @@ $(document).ready ->
 # Form Handler
 (->
   initialize = ->
-    $("#submit-location").click ->
+    $("#submit-location").click (evt)->
+      evt.preventDefault()
+      evt.stopPropagation()
+      $('.fade-elements').animate({opacity:0})
       # Get Google Address
       location = $('[name=location]').val()
       objLatLong = _getLatLong location,(geoObj) ->
@@ -55,6 +58,7 @@ $(document).ready ->
     canvasEl = document.getElementById("map-canvas")
     map = new google.maps.Map(document.getElementById("map-canvas"), mapOptions)
     canvasEl.style.height = '200px'
+    $('#google-map-container').animate({opacity:1})
     return
       
   _getLatLong = (address,callBack) ->
@@ -62,7 +66,7 @@ $(document).ready ->
       sensor: true
       address: address
     , (data) ->
-      callBack(data)
+      callBack data
       return data
 
     return
@@ -97,40 +101,75 @@ $(document).ready ->
     $(".current-temp").html("#{Math.round(weatherData.currently.temperature)}°F")
     $(".current-hi-temp").html("Hi: #{Math.round(weatherData.daily.data[0].temperatureMax)}°F")
     $(".current-low-temp").html("Lo: #{Math.round(weatherData.daily.data[0].temperatureMin)}°F")
+
+    $(".current-humidity").html("Humidity: #{Math.round(weatherData.currently.humidity)}")
+    $(".current-humidity").html("Chance of Rain: #{Math.round(weatherData.currently.precipProbability*100)}%")
+    $(".current-weather-description").html("#{weatherData.minutely.summary}")
+    
     skycons = new Skycons(color: "#333")
     skycons.add "current-weather-icon", _skycon_type(weatherData.minutely.icon)
     skycons.play()
-
-
+      
     # D3 Visualization
-    #data = []
    
     console.log "minutely",weatherData.minutely
-    console.log data
     
-    w = 300
-    h = 100
+    
     $("#weather-by-minute-chart").html('')
-    svg = d3.select("#weather-by-minute-chart").append("svg").attr("width", w).attr("height", h)
+    
+    lineData = []
+    lineData.push 100*minute.precipProbability for minute,i in weatherData.minutely.data
 
-    # make some fake data
-    #[
-    #  [ {minute:1, val: 0.3343}, ...],
-    #  ...
-    #]
-    #
-    line = []
-    line.push {minute:i,val:minute.precipProbability} for minute,i in weatherData.minutely.data
-    data = [line]
-    console.log data
-    x = d3.scale.linear().domain([0, 60]).range([0, w])
-    y = d3.scale.linear().domain([1, 0]).range([0, h])
-    line = d3.svg.line().interpolate("basis").x((d) ->
-      x d.minute
+    # data = [3, 6, 2, 7, 5, 2, 1, 3, 8, 9, 2, 5, 7]
+    data = lineData
+    w = 600
+    h = 200
+    margin = 40
+    y = d3.scale.linear().domain([0, 100]).range([0 + margin, h - margin])
+    x = d3.scale.linear().domain([0, data.length]).range([0 + margin, w - margin])
+    vis = d3.select("#weather-by-minute-chart").append("svg:svg").attr("width", w).attr("height", h)
+    g = vis.append("svg:g").attr("transform", "translate(0, 200)")
+    line = d3.svg.line().interpolate("monotone").x((d, i) ->
+      x i
     ).y((d) ->
-      y d.val
+      -1 * y(d)
     )
-    group = svg.selectAll("path").data(data).enter().append("path").attr("d", line)
+    g.append("svg:path").attr "d", line(data)
+    g.append("svg:line").attr("x1", x(0)).attr("y1", -1 * y(0)).attr("x2", x(w)).attr "y2", -1 * y(0)
+    g.append("svg:line").attr("x1", x(0)).attr("y1", -1 * y(0)).attr("x2", x(0)).attr "y2", -1 * 100
+
+    # X Labels
+    g.selectAll(".xLabel").data(x.ticks(5)).enter().append("svg:text").attr("class", "xLabel").text((d) ->
+      moment().add('minutes', d).format("h:mm a")
+    ).attr("x", (d) ->
+      x d
+    ).attr("y", 0).attr "text-anchor", "middle"
+    
+    # Y Labels 
+    g.selectAll(".yLabel").data(y.ticks(4)).enter().append("svg:text").attr("class", "yLabel").text((d) ->
+      d + '%'
+    ).attr("x", 0).attr("y", (d) ->
+      -1 * y(d)
+    ).attr("text-anchor", "right").attr "dy", 4
+
+    # X Ticks
+    g.selectAll(".xTicks").data(x.ticks(5)).enter().append("svg:line").attr("class", "xTicks").attr("x1", (d) ->
+      x d
+    ).attr("y1", -1 * y(0)).attr("x2", (d) ->
+      x d
+    ).attr "y2", -1 * y(-0.3)
+
+    # Y Ticks
+    g.selectAll(".yTicks").data(y.ticks(4)).enter().append("svg:line").attr("class", "yTicks").attr("y1", (d) ->
+      -1 * y(d)
+    ).attr("x1", x(-0.3)).attr("y2", (d) ->
+      -1 * y(d)
+    ).attr "x2", x(0)
+
+
+    $('#forecast-io-container').animate({opacity:1})
+
+
     return
   return
 
