@@ -16,28 +16,34 @@
 //= require vendor/moment
 //= require vendor/spin
 //= require vendor/d3.v3.min
+
 //= require vendor/skycons
 
 
 
 jQuery ->
   
-  class LocationModel extends Backbone.Model
+
+  # Let's build our Location Model
+  # Attributes:
+  #   address (string, whatever people type)
+  #   latlng (array of lat and lng)
+  #
+  class window.LocationModel extends Backbone.Model
     
     defaults:
       address:'97213'
     initialize: =>
       return
-    updateAddress: (address) =>
+    updateAddress: (address,callBack) =>
       @.set('address',address)
-      # console.log @.toJSON()
-      # console.log '_getLatLong'
+
       
       googleURL = "http://maps.googleapis.com/maps/api/geocode/json"
       $.getJSON googleURL,{sensor: true,address: address},(data) =>
-        console.log data
         if data.results.length == 0
           @.trigger("geoLocateError")
+          if jQuery.isFunction(callBack) then callBack()
           return
         newLatLng = 
           lat:data.results[0].geometry.location.lat
@@ -45,24 +51,23 @@ jQuery ->
         @.set('locationString',data.results[0].formatted_address)
         @.set('latlng',newLatLng)
         @.updateWeatherData()
+        if jQuery.isFunction(callBack) then callBack()
         return
           
       return
     updateWeatherData: =>
-      # console.log 'updateWeatherData'
       modelData = @.toJSON()
-      # console.log modelData
       $.getJSON "https://api.forecast.io/forecast/b4e531886cc20299182451b1cbc0b793/#{modelData.latlng.lat},#{modelData.latlng.lng}?callback=?",
       null
       ,(data) =>
         @.set('weatherData',data)
         return data
-      return
+      return 
   
   # End of LocationData Model
   
   
-  class LocationView extends Backbone.View
+  class window.LocationView extends Backbone.View
     model: LocationModel
     tagName: 'div'
     el: 'body'
@@ -71,13 +76,14 @@ jQuery ->
       'click #submit-location': 'updateModel'
 
     initialize: ->
-      # _.bindAll @,'updateModel'
+
       @.model.bind("geoLocateError", @.showGeoLocateError)
       @.model.bind("change:latlng", @.renderMap)
       @.model.bind("change:weatherData", @.renderWeather)
 
     updateModel: =>
-      # console.log('updateModel')
+      $('#google-map-container').animate({opacity:0})
+      $('#forecast-io-container').animate({opacity:0})
       @.model.updateAddress($('[name=location]').val())
     showGeoLocateError: =>
       $('.geolocate-error ').remove()
@@ -87,10 +93,13 @@ jQuery ->
       <strong>Oh snap!</strong> Couldn\'t find a location based on your entry Want to try again?
       </p>')
 
+
+    # This takes the latitude and longitude and appends a google map with 
+    # those coordintes as the center
+
     renderMap: =>
       $('.geolocate-error ').fadeOut().remove()
       modelData = @.model.toJSON()
-      # console.log(modelData)
       mapOptions =
         zoom: 12
         center: new google.maps.LatLng(modelData.latlng.lat, modelData.latlng.lng)
@@ -102,42 +111,52 @@ jQuery ->
       $('#google-map-container').animate({opacity:1})
       return
 
-
+    # This renders the weather section of the app once the weather data arrives
     renderWeather: =>
-      $('#forecast-io-container').animate({opacity:1})
+
+      
       modelData = @.model.toJSON()
-      # console.log(modelData)
+      # Build out the first panel with all the current data
+
       $(".current-temp").html("#{Math.round(modelData.weatherData.currently.temperature)}°F")
       $(".current-hi-temp").html("Hi: #{Math.round(modelData.weatherData.daily.data[0].temperatureMax)}°F")
       $(".current-low-temp").html("Lo: #{Math.round(modelData.weatherData.daily.data[0].temperatureMin)}°F")
-
       $(".current-humidity").html("Humidity: #{Math.round(modelData.weatherData.currently.humidity)}")
       $(".current-humidity").html("Chance of Rain: #{Math.round(modelData.weatherData.currently.precipProbability*100)}%")
-      
       $(".current-weather-description").html("#{modelData.weatherData.currently.summary}")
 
+      # Now let's build out the minute by minute chart
       @.renderWeatherMinuteChart()
+
+      # After all this is done, fade it in
+      $('#forecast-io-container').animate({opacity:1})
     
     renderWeatherMinuteChart: =>
       modelData = @.model.toJSON()
+
+      # First build the pretty skycon for the weather and initialize the animation
       skycons = new Skycons(color: "#333")
       skycons.add "current-weather-icon", @.getSkyCon()
       skycons.play()
         
-      # D3 Visualization
-     
-      # console.log "minutely",modelData.weatherData.minutely
       
-      
+
+      # D3 Visualization of the minute weather
+
+      # For countries with less weather data, they don't get minute-by-minute data, 
+      # so show a message if that's the case.
       $("#weather-by-minute-chart").html('')
       if modelData.weatherData.minutely? == false
         $("#weather-by-minute-chart").html('There is no minute-by-minute data for this location.')
         return
+
+
+      # Let's build our line data. For each minute, push the precipitation probability
       lineData = []
       lineData.push 100*minute.precipProbability for minute,i in modelData.weatherData.minutely.data
-
-      # data = [3, 6, 2, 7, 5, 2, 1, 3, 8, 9, 2, 5, 7]
       data = lineData
+
+      # Now let's build our SVG
       w = 600
       h = 200
       margin = 40
@@ -152,7 +171,7 @@ jQuery ->
       )
       g.append("svg:path").attr "d", line(data)
       g.append("svg:line").attr("x1", x(0)).attr("y1", -1 * y(0)).attr("x2", x(w)).attr "y2", -1 * y(0)
-      g.append("svg:line").attr("x1", x(0)).attr("y1", -1 * y(0)).attr("x2", x(0)).attr "y2", -1 * 100
+      g.append("svg:line").attr("x1", x(0)).attr("y1", -1 * y(0)).attr("x2", x(0)).attr "y2", -1.7 * 100
 
       # X Labels
       g.selectAll(".xLabel").data(x.ticks(5)).enter().append("svg:text").attr("class", "xLabel").text((d) ->
@@ -184,7 +203,9 @@ jQuery ->
 
 
       
-
+    # All those labels that we generate are fun, but forecast.io doesn't give us back
+    # the right string, we need to convert them
+    # http://darkskyapp.github.io/skycons/
     getSkyCon: ->
       modelData = @.model.toJSON()
       switch modelData.weatherData.currently.icon
@@ -200,17 +221,23 @@ jQuery ->
         when "clear-day" then Skycons.CLEAR_DAY
         when "clear-night" then Skycons.CLEAR_NIGHT 
         else Skycons.CLOUDY
-  
+    
   # End of LocationView View
   
 
   initializeApp = ->
     location_model = new LocationModel({address:'97213'})
     location_view = new LocationView({model: location_model})
+
+    # We're just going to initialize the application with some dummy Portland data
     $("#submit-location").click()
+    # Binding the Enter button
+    $("#location-input").keyup (e) ->
+      $("#submit-location").click()  if e.keyCode is 13
     return
 
   # Start the app once the Google Maps API has been loaded
+
   google.maps.event.addDomListener window, "load", initializeApp
   
 
