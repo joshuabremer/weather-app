@@ -107,7 +107,7 @@ jQuery ->
       canvasEl = document.getElementById("map-canvas")
       map = new google.maps.Map(document.getElementById("map-canvas"), mapOptions)
       canvasEl.style.height = '200px'
-      $('#google-map-container .panel-title').html("Current Weather - #{modelData.locationString}")
+      $('#google-map-container .panel-title').html("Current Location - #{modelData.locationString}")
       $('#google-map-container').animate({opacity:1})
       return
 
