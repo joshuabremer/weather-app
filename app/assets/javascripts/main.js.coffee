@@ -30,12 +30,15 @@ jQuery ->
       return
     updateAddress: (address) =>
       @.set('address',address)
-      console.log @.toJSON()
-      console.log '_getLatLong'
+      # console.log @.toJSON()
+      # console.log '_getLatLong'
       
       googleURL = "http://maps.googleapis.com/maps/api/geocode/json"
       $.getJSON googleURL,{sensor: true,address: address},(data) =>
         console.log data
+        if data.results.length == 0
+          @.trigger("geoLocateError")
+          return
         newLatLng = 
           lat:data.results[0].geometry.location.lat
           lng:data.results[0].geometry.location.lng
@@ -46,9 +49,9 @@ jQuery ->
           
       return
     updateWeatherData: =>
-      console.log 'updateWeatherData'
+      # console.log 'updateWeatherData'
       modelData = @.toJSON()
-      console.log modelData
+      # console.log modelData
       $.getJSON "https://api.forecast.io/forecast/b4e531886cc20299182451b1cbc0b793/#{modelData.latlng.lat},#{modelData.latlng.lng}?callback=?",
       null
       ,(data) =>
@@ -69,17 +72,25 @@ jQuery ->
 
     initialize: ->
       # _.bindAll @,'updateModel'
+      @.model.bind("geoLocateError", @.showGeoLocateError)
       @.model.bind("change:latlng", @.renderMap)
       @.model.bind("change:weatherData", @.renderWeather)
 
     updateModel: =>
-      console.log('updateModel')
+      # console.log('updateModel')
       @.model.updateAddress($('[name=location]').val())
-
+    showGeoLocateError: =>
+      $('.geolocate-error ').remove()
+      $('#location-form').after('
+      <p class="geolocate-error alert alert-dismissable alert-danger">
+      <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+      <strong>Oh snap!</strong> Couldn\'t find a location based on your entry Want to try again?
+      </p>')
 
     renderMap: =>
+      $('.geolocate-error ').fadeOut().remove()
       modelData = @.model.toJSON()
-      console.log(modelData)
+      # console.log(modelData)
       mapOptions =
         zoom: 12
         center: new google.maps.LatLng(modelData.latlng.lat, modelData.latlng.lng)
@@ -95,7 +106,7 @@ jQuery ->
     renderWeather: =>
       $('#forecast-io-container').animate({opacity:1})
       modelData = @.model.toJSON()
-      console.log(modelData)
+      # console.log(modelData)
       $(".current-temp").html("#{Math.round(modelData.weatherData.currently.temperature)}°F")
       $(".current-hi-temp").html("Hi: #{Math.round(modelData.weatherData.daily.data[0].temperatureMax)}°F")
       $(".current-low-temp").html("Lo: #{Math.round(modelData.weatherData.daily.data[0].temperatureMin)}°F")
@@ -115,7 +126,7 @@ jQuery ->
         
       # D3 Visualization
      
-      console.log "minutely",modelData.weatherData.minutely
+      # console.log "minutely",modelData.weatherData.minutely
       
       
       $("#weather-by-minute-chart").html('')
